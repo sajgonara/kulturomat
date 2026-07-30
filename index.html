@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Kulturomat — kina, festiwale i teatry na mapie Polski</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎭</text></svg>">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --bg:#0e1116; --panel:#161b22; --panel2:#1f2530; --text:#eef2f7; --muted:#9aa5b4;
+  --accent:#f2a65a; --accent2:#5fbf77; --border:#2c3442; --chip:#28303c;
+  --c-muzyka:#f2a65a; --c-film:#7aa2f7; --c-folk:#c98bdb; --c-historia:#d0805c;
+  --c-teatr:#e6667a; --c-jarmark:#5fbf77; --c-jedzenie:#e0c341; --c-literatura:#6fc7c2; --c-inne:#8b93a3;
+  --c-dramatyczny:#e6667a; --c-muzyczny:#f2a65a; --c-opera:#c98bdb; --c-lalek:#6fc7c2;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+header{padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--border)}
+.hrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header h1{font-size:1.12rem;font-weight:700;white-space:nowrap}
+header h1 span{color:var(--accent)}
+header .sub{color:var(--muted);font-size:.78rem}
+#modes{display:flex;gap:6px;flex-wrap:wrap}
+.mode{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:20px;
+      padding:6px 14px;font-size:.85rem;cursor:pointer;font-family:inherit}
+.mode:hover{border-color:var(--accent);color:var(--text)}
+.mode.on{background:var(--accent);border-color:var(--accent);color:#1a1206;font-weight:700}
+#controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
+select,input[type=text],input[type=date]{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:.85rem;outline:none;font-family:inherit}
+input[type=text]{width:180px}
+input[type=date]{color-scheme:dark;width:145px}
+select:focus,input:focus{border-color:var(--accent)}
+#dates{display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px;flex-basis:100%}
+body.adv-open #dates{display:flex}
+#advToggle{background:var(--panel2);border:1px solid var(--border);color:var(--muted);
+           border-radius:8px;padding:7px 10px;font-size:.85rem;cursor:pointer;font-family:inherit;white-space:nowrap}
+#advToggle:hover{border-color:var(--accent);color:var(--text)}
+.presets{display:flex;gap:5px;flex-wrap:wrap}
+.preset{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:5px 11px;font-size:.75rem;cursor:pointer;font-family:inherit}
+.preset:hover{border-color:var(--accent);color:var(--text)}
+.preset.on{background:var(--accent);border-color:var(--accent);color:#1a1206;font-weight:600}
+.toggle{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted);cursor:pointer;user-select:none}
+.toggle input{accent-color:var(--accent2);width:15px;height:15px;cursor:pointer}
+#main{flex:1;display:flex;min-height:0}
+#list{width:430px;min-width:320px;overflow-y:auto;background:var(--panel);border-right:1px solid var(--border);padding:10px}
+#map{flex:1}
+.card{background:var(--panel2);border:1px solid var(--border);border-left:3px solid var(--cat,var(--border));border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.card:hover,.card.active{border-color:var(--accent);border-left-color:var(--cat,var(--accent))}
+.card .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card .name{font-weight:600;font-size:.95rem}
+.card .city{color:var(--accent);font-size:.85rem;font-weight:600;white-space:nowrap}
+.card .when{margin-top:5px;font-size:.82rem;color:var(--text)}
+.card .when b{color:var(--accent)}
+.card .chips,.card .prices{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.chip{background:var(--chip);border-radius:6px;padding:2px 8px;font-size:.74rem;color:var(--muted)}
+.chip b{color:var(--text)}
+.chip.free{background:#1d3626;color:#9fe0b2}
+.chip.free b{color:#9fe0b2}
+.chip.cat b{color:var(--cat)}
+.chip.min b{color:var(--accent2)}
+.chip.shows b{color:var(--accent)}
+.chip.soon{background:#3a2c14;color:#f2c98a}
+.chip.now{background:#3a1420;color:#ff9db0}
+.card .note{margin-top:5px;font-size:.72rem;color:var(--muted);font-style:italic}
+.card .links{margin-top:6px;font-size:.75rem}
+.card .links a{color:var(--accent);text-decoration:none;margin-right:10px}
+.card .links a:hover{text-decoration:underline}
+.past{opacity:.45}
+.badge{font-size:.63rem;border:1px solid var(--border);border-radius:4px;padding:1px 4px;color:var(--muted);vertical-align:middle}
+.badge.est{border-color:#4a3a5e;color:#b79ad4}
+.badge.sks{color:var(--accent);border-color:var(--accent)}
+#stats{padding:6px 14px;font-size:.75rem;color:var(--muted);border-bottom:1px solid var(--border)}
+#empty{padding:24px 12px;text-align:center;color:var(--muted);font-size:.85rem}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel2);color:var(--text)}
+.leaflet-popup-content{font-size:.85rem;line-height:1.45}
+.leaflet-popup-content a{color:var(--accent)}
+.leaflet-container{background:#0a0d11}
+footer{padding:6px 18px;background:var(--panel);border-top:1px solid var(--border);font-size:.7rem;color:var(--muted)}
+footer a{color:var(--accent)}
+#tabs{display:none}
+#applyFilters{display:none}
+#filters{display:contents}
+@media(max-width:900px){
+  header{padding:10px 12px}
+  header .sub{display:none}
+  #controls{margin-left:0;width:100%}
+  input[type=text]{width:100%;font-size:1rem}
+  #main{position:relative}
+  #list,#map{position:absolute;inset:0;width:100%;height:100%;min-width:0;border:0;display:none}
+  #main.view-list #list{display:block}
+  #main.view-map #map{display:block}
+  #filters{display:none;flex-direction:column;align-items:stretch;gap:8px;width:100%;
+           background:var(--panel);border-bottom:1px solid var(--border);padding:10px 12px}
+  #filters select,#filters input[type=date],#filters #advToggle{width:100%}
+  body.filters-open #filters{display:flex}
+  #applyFilters{display:block;padding:10px;border:0;border-radius:8px;
+                background:var(--accent);color:#1a1206;font-weight:700;font-size:.95rem}
+  footer{display:none}
+  #tabs{display:flex;background:var(--panel);border-top:1px solid var(--border);
+        padding-bottom:env(safe-area-inset-bottom,0px)}
+  #tabs button{flex:1;padding:12px 4px;background:none;border:0;border-top:2px solid transparent;
+               color:var(--muted);font-size:.9rem;cursor:pointer;font-family:inherit}
+  #tabs button.on{color:var(--accent);font-weight:700;border-top-color:var(--accent)}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <div>
+      <h1>🎭 <span>Kulturomat</span></h1>
+      <div class="sub">kina studyjne · festiwale · teatry — mapa, terminy, ceny</div>
+    </div>
+    <div id="modes">
+      <button class="mode on" data-m="festiwale">🎪 Festiwale</button>
+      <button class="mode" data-m="kina">🎬 Kina</button>
+      <button class="mode" data-m="teatry">🎭 Teatry</button>
+    </div>
+    <div id="controls">
+      <input type="text" id="search" placeholder="Szukaj nazwy lub miasta…">
+      <div id="filters"></div>
+    </div>
+  </div>
+</header>
+<div id="stats"></div>
+<div id="main">
+  <div id="list"></div>
+  <div id="map"></div>
+</div>
+<footer><span id="updated"></span> — dane zbiorcze: Sieć Kin Studyjnych, strony festiwali i teatrów, OpenStreetMap.
+Terminy oznaczone ~termin / ≈ szacunek potwierdź u organizatora.
+<a href="https://github.com/sajgonara/kulturomat" target="_blank">GitHub</a></footer>
+<nav id="tabs">
+  <button data-v="list" class="on">📋 Lista</button>
+  <button data-v="map">🗺️ Mapa</button>
+  <button data-v="filters">🎛️ Filtry</button>
+</nav>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="data_festiwale.js"></script>
+<script src="data_kina.js"></script>
+<script src="data_teatry.js"></script>
+<script>
+// ---------- wspolne ----------
+const CAT_LABEL={muzyka:'🎵 muzyka',film:'🎬 film',folk:'🪗 folk',historia:'🛡️ historia',teatr:'🎭 teatr',jarmark:'🏪 jarmark',jedzenie:'🍲 jedzenie',literatura:'📚 literatura',inne:'✨ inne'};
+const CAT_COLOR={muzyka:'#f2a65a',film:'#7aa2f7',folk:'#c98bdb',historia:'#d0805c',teatr:'#e6667a',jarmark:'#5fbf77',jedzenie:'#e0c341',literatura:'#6fc7c2',inne:'#8b93a3'};
+const TYPE_LABEL={dramatyczny:'🎭 dramatyczny',muzyczny:'🎵 muzyczny',opera:'🎼 opera',lalek:'🧸 lalkowy'};
+const TYPE_COLOR={dramatyczny:'#e6667a',muzyczny:'#f2a65a',opera:'#c98bdb',lalek:'#6fc7c2'};
+const TODAY=new Date().toISOString().slice(0,10);
+const MONTHS=['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
+const el=id=>document.getElementById(id);
+const listEl=el('list'), statsEl=el('stats'), searchEl=el('search'), mainEl=el('main'), filtersEl=el('filters');
+
+const map=L.map('map').setView([52.1,19.4],6);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19}).addTo(map);
+
+// mobilne widoki lista/mapa/filtry + mądre przejścia
+const isMobile=()=>window.matchMedia('(max-width:900px)').matches;
+function setView(v){
+  mainEl.className='view-'+v;
+  document.body.classList.toggle('filters-open',v==='filters');
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  if(v==='map') setTimeout(()=>map.invalidateSize(),60);
+}
+window.goList=i=>{setView('list');highlight(i,false);};
+document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.v)));
+
+function fmtRange(s,e){
+  const [ys,ms,ds]=s.split('-').map(Number),[ye,me,de]=e.split('-').map(Number);
+  if(s===e) return `${ds} ${MONTHS[ms-1]} ${ys}`;
+  if(ms===me&&ys===ye) return `${ds}–${de} ${MONTHS[ms-1]} ${ys}`;
+  if(ys===ye) return `${ds} ${MONTHS[ms-1]} – ${de} ${MONTHS[me-1]} ${ye}`;
+  return `${ds} ${MONTHS[ms-1]} ${ys} – ${de} ${MONTHS[me-1]} ${ye}`;
+}
+const daysBetween=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
+const fmtPLN=v=>v==null?'—':String(v).replace(/\.00$/,'').replace('.',',')+' zł';
+
+// ---------- definicje trybow ----------
+const MODES={
+  festiwale:{
+    dane:()=>FESTIWALE,
+    kolor:f=>CAT_COLOR[f.category]||'#8b93a3',
+    miasto:f=>f.city, lat:f=>f.lat, lng:f=>f.lng,
+    filtryHtml:`
+      <select id="fCat"><option value="">Wszystkie kategorie</option></select>
+      <select id="fCity"><option value="">Wszystkie miasta</option></select>
+      <select id="fSort">
+        <option value="date">📅 Chronologicznie</option>
+        <option value="price">💰 Najtańsze najpierw</option>
+        <option value="city">🏙️ Miasto A–Z</option>
+        <option value="name">🔤 Nazwa A–Z</option>
+      </select>
+      <button id="advToggle" type="button">⚙️ Terminy i opcje ▾</button>
+      <div id="dates">
+        <span class="lbl">Termin:</span>
+        <input type="date" id="fFrom"><span class="lbl">–</span><input type="date" id="fTo">
+        <div class="presets">
+          <button class="preset" data-p="year">Najbliższy rok</button>
+          <button class="preset" data-p="halfyear">Pół roku</button>
+          <button class="preset" data-p="month">Najbliższy miesiąc</button>
+          <button class="preset" data-p="weekend">Ten weekend</button>
+          <button class="preset" data-p="summer">Najbliższe lato</button>
+          <button class="preset" data-p="all">Wszystko</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="fFree"> tylko darmowe</label>
+      </div>
+      <button id="applyFilters">✓ Pokaż wyniki</button>`,
+    initFiltry(){
+      [...new Set(FESTIWALE.map(f=>f.category))].sort().forEach(c=>{
+        const o=document.createElement('option');o.value=c;o.textContent=CAT_LABEL[c]||c;el('fCat').appendChild(o);});
+      wypelnijMiasta(FESTIWALE,el('fCity'));
+      el('advToggle').addEventListener('click',()=>{
+        const open=document.body.classList.toggle('adv-open');
+        el('advToggle').textContent=open?'⚙️ Terminy i opcje ▴':'⚙️ Terminy i opcje ▾';
+      });
+      document.querySelectorAll('.preset').forEach(b=>b.addEventListener('click',()=>{
+        const [a,z]=PRESETS[b.dataset.p](); setRange(a,z,b.dataset.p);
+        if(isMobile()&&document.body.classList.contains('filters-open')) setView('list');
+      }));
+      const [a,z]=PRESETS.year(); setRange(a,z,'year');
+      ['fCat','fCity','fSort','fFree','fFrom','fTo'].forEach(id=>el(id).addEventListener('change',()=>{
+        document.querySelectorAll('.preset').forEach(b=>b.classList.remove('on')); render();}));
+    },
+    filtruj(items,q){
+      const from=el('fFrom').value||DATA_MIN, to=el('fTo').value||DATA_MAX;
+      return items.filter(({f})=>f.start<=to&&f.end>=from)
+        .filter(({f})=>!el('fCat').value||f.category===el('fCat').value)
+        .filter(({f})=>!el('fCity').value||f.city===el('fCity').value)
+        .filter(({f})=>!el('fFree').checked||f.free===true)
+        .filter(({f})=>!q||f.name.toLowerCase().includes(q)||f.city.toLowerCase().includes(q)||(f.note||'').toLowerCase().includes(q));
+    },
+    sortuj(items){
+      const s=el('fSort').value;
+      if(s==='date') items.sort((a,b)=>a.f.start.localeCompare(b.f.start)||a.f.name.localeCompare(b.f.name,'pl'));
+      else if(s==='price') items.sort((a,b)=>cenaFest(a.f)-cenaFest(b.f)||a.f.start.localeCompare(b.f.start));
+      else if(s==='city') items.sort((a,b)=>a.f.city.localeCompare(b.f.city,'pl')||a.f.start.localeCompare(b.f.start));
+      else items.sort((a,b)=>a.f.name.localeCompare(b.f.name,'pl'));
+    },
+    karta(f,i){
+      const past=f.end<TODAY, ongoing=f.start<=TODAY&&f.end>=TODAY;
+      const dd=daysBetween(TODAY,f.start);
+      const col=CAT_COLOR[f.category]||'#8b93a3';
+      const price=f.free?'<span class="chip free">🎟️ <b>wstęp wolny</b></span>'
+        :(f.priceMin!=null||f.pricePass!=null?`<span class="chip">od <b>${fmtPLN(f.priceMin??f.pricePass)}</b></span>`:'<span class="chip">cena <b>—</b></span>');
+      const timing=ongoing?'<span class="chip now"><b>trwa teraz</b></span>'
+        :(!past&&dd<=30?`<span class="chip soon">za <b>${dd}</b> dni</span>`:'');
+      const badge=f.estimated?'<span class="badge est" title="edycja oszacowana z poprzedniej">≈ szacunek</span>'
+        :(f.verified?'':'<span class="badge" title="termin orientacyjny">~termin</span>');
+      return `<div class="card ${past?'past':''}" data-i="${i}" style="--cat:${col}">
+        <div class="top"><span class="name">${f.name} ${badge}</span><span class="city">📍 ${f.city}</span></div>
+        <div class="when">📅 <b>${fmtRange(f.start,f.end)}</b></div>
+        <div class="chips"><span class="chip cat" style="--cat:${col}"><b>${CAT_LABEL[f.category]||f.category}</b></span>${price}${timing}</div>
+        ${f.priceNote?`<div class="note">${f.priceNote}</div>`:''}
+        ${f.note?`<div class="note">${f.note}</div>`:''}
+        <div class="links">${f.website?`<a href="${f.website}" target="_blank">🌐 strona</a>`
+          :`<a href="https://duckduckgo.com/?q=${encodeURIComponent(f.name+' '+f.city)}" target="_blank">🔎 szukaj w sieci</a>`}</div>
+      </div>`;
+    },
+    popup(f,i){
+      const badge=f.estimated?'≈ szacunek':(f.verified?'':'~termin');
+      return `<b>${f.name}</b><br>${f.city} · ${CAT_LABEL[f.category]||f.category}<br>
+        📅 <b>${fmtRange(f.start,f.end)}</b> ${badge}
+        ${f.free?'<br>🎟️ <b style="color:#5fbf77">wstęp wolny</b>':(f.priceMin!=null||f.pricePass!=null?`<br>🎟️ od <b>${fmtPLN(f.priceMin??f.pricePass)}</b>`:'')}
+        ${f.priceNote?`<br><i style="font-size:.9em">${f.priceNote}</i>`:''}
+        ${f.website?`<br><a href="${f.website}" target="_blank">strona</a>`:''}
+        <br><a href="#" onclick="goList(${i});return false">📋 pokaż na liście</a>`;
+    },
+    statystyki(items){
+      const free=items.filter(({f})=>f.free===true).length;
+      const est=items.filter(({f})=>f.estimated).length;
+      return `${items.length} festiwali · ${free} z wolnym wstępem`
+        +(est?` · ${est} to oszacowane edycje`:'');
+    }
+  },
+  kina:{
+    dane:()=>KINA,
+    kolor:k=>k.sks?'#e6b34c':'#7f8fa0',
+    miasto:k=>k.city, lat:k=>k.lat, lng:k=>k.lng,
+    filtryHtml:`
+      <select id="fSort">
+        <option value="priceMin">💰 Najtańszy bilet</option>
+        <option value="priceNormal">🎟️ Bilet normalny</option>
+        <option value="shows">🕐 Najwięcej seansów</option>
+        <option value="city">🏙️ Miasto A–Z</option>
+        <option value="name">🔤 Nazwa A–Z</option>
+      </select>
+      <select id="fWoj"><option value="">Cała Polska</option></select>
+      <select id="fCity"><option value="">Wszystkie miasta</option></select>
+      <select id="fSks">
+        <option value="">Wszystkie kina</option>
+        <option value="1">⭐ Tylko Sieć Kin Studyjnych</option>
+      </select>
+      <button id="applyFilters">✓ Pokaż wyniki</button>`,
+    initFiltry(){
+      [...new Set(KINA.map(k=>k.woj).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pl')).forEach(w=>{
+        const o=document.createElement('option');o.value=w;o.textContent=w;el('fWoj').appendChild(o);});
+      wypelnijMiasta(KINA.filter(k=>!el('fWoj').value||k.woj===el('fWoj').value),el('fCity'));
+      el('fWoj').addEventListener('change',()=>{
+        const prev=el('fCity').value;
+        wypelnijMiasta(KINA.filter(k=>!el('fWoj').value||k.woj===el('fWoj').value),el('fCity'),prev);
+        render();});
+      ['fSort','fCity','fSks'].forEach(id=>el(id).addEventListener('change',render));
+    },
+    filtruj(items,q){
+      return items.filter(({f:k})=>!el('fWoj').value||k.woj===el('fWoj').value)
+        .filter(({f:k})=>!el('fCity').value||k.city===el('fCity').value)
+        .filter(({f:k})=>!el('fSks').value||k.sks)
+        .filter(({f:k})=>!q||k.name.toLowerCase().includes(q)||k.city.toLowerCase().includes(q)||(k.woj||'').toLowerCase().includes(q));
+    },
+    sortuj(items){
+      const s=el('fSort').value;
+      const effMin=k=>k.priceMin??k.priceDiscount??k.priceNormal;
+      if(s==='city') items.sort((a,b)=>a.f.city.localeCompare(b.f.city,'pl')||a.f.name.localeCompare(b.f.name,'pl'));
+      else if(s==='name') items.sort((a,b)=>a.f.name.localeCompare(b.f.name,'pl'));
+      else if(s==='shows') items.sort((a,b)=>(b.f.showsPerDay??-1)-(a.f.showsPerDay??-1));
+      else if(s==='priceNormal') items.sort((a,b)=>(a.f.priceNormal??Infinity)-(b.f.priceNormal??Infinity));
+      else items.sort((a,b)=>(effMin(a.f)??Infinity)-(effMin(b.f)??Infinity));
+    },
+    karta(k,i){
+      const effMin=k.priceMin??k.priceDiscount??k.priceNormal;
+      const col=k.sks?'#e6b34c':'#7f8fa0';
+      return `<div class="card" data-i="${i}" style="--cat:${col}">
+        <div class="top"><span class="name">${k.name} ${k.sks?'<span class="badge sks" title="Sieć Kin Studyjnych">⭐ SKS</span>':''} ${k.verified?'':'<span class="badge" title="cena szacunkowa">~cena</span>'}</span><span class="city">📍 ${k.city}</span></div>
+        <div class="prices">
+          <span class="chip min">od <b>${fmtPLN(effMin)}</b></span>
+          <span class="chip">norm. <b>${fmtPLN(k.priceNormal)}</b></span>
+          <span class="chip">ulg. <b>${fmtPLN(k.priceDiscount)}</b></span>
+          <span class="chip shows">seanse/dzień: <b>${k.showsPerDay??'—'}</b></span>
+          ${k.screens?`<span class="chip">sale: <b>${k.screens}</b></span>`:''}
+        </div>
+        ${k.priceNote?`<div class="note">${k.priceNote}</div>`:''}
+        <div class="links">
+          ${k.website?`<a href="${k.website}" target="_blank">🌐 strona</a>`:''}
+          ${k.repertuarUrl?`<a href="${k.repertuarUrl}" target="_blank">📅 repertuar</a>`:''}
+        </div>
+      </div>`;
+    },
+    popup(k,i){
+      const effMin=k.priceMin??k.priceDiscount??k.priceNormal;
+      return `<b>${k.name}</b>${k.sks?' ⭐':''}<br>${k.city}${k.address?', '+k.address:''}${k.woj?'<br><i style="font-size:.85em">woj. '+k.woj+'</i>':''}<br>
+        Normalny: <b>${fmtPLN(k.priceNormal)}</b> · Ulgowy: <b>${fmtPLN(k.priceDiscount)}</b>
+        ${k.priceMin!=null?`<br>Najtaniej: <b style="color:#5fbf77">${fmtPLN(k.priceMin)}</b>`:''}
+        ${k.priceNote?`<br><i style="font-size:.85em">${k.priceNote}</i>`:''}
+        ${k.website?`<br><a href="${k.website}" target="_blank">strona</a>`:''}
+        ${k.repertuarUrl?` · <a href="${k.repertuarUrl}" target="_blank">repertuar</a>`:''}
+        <br><a href="#" onclick="goList(${i});return false">📋 pokaż na liście</a>`;
+    },
+    statystyki(items){
+      const effMin=k=>k.priceMin??k.priceDiscount??k.priceNormal;
+      const withPrice=items.filter(({f:k})=>effMin(k)!=null);
+      const miast=new Set(items.map(({f:k})=>k.city)).size;
+      const avg=withPrice.length?withPrice.reduce((s,{f:k})=>s+effMin(k),0)/withPrice.length:0;
+      return `${items.length} kin w ${miast} miejscowościach`
+        +(withPrice.length?` · średnia cena „od": ${avg.toFixed(2).replace('.',',')} zł`:'');
+    }
+  },
+  teatry:{
+    dane:()=>TEATRY,
+    kolor:t=>TYPE_COLOR[t.type]||'#8b93a3',
+    miasto:t=>t.city, lat:t=>t.lat, lng:t=>t.lng,
+    filtryHtml:`
+      <select id="fType"><option value="">Wszystkie typy scen</option></select>
+      <select id="fCity"><option value="">Wszystkie miasta</option></select>
+      <select id="fSort">
+        <option value="city">🏙️ Miasto A–Z</option>
+        <option value="name">🔤 Nazwa A–Z</option>
+        <option value="type">🎭 Typ sceny</option>
+      </select>
+      <button id="applyFilters">✓ Pokaż wyniki</button>`,
+    initFiltry(){
+      [...new Set(TEATRY.map(t=>t.type))].sort().forEach(c=>{
+        const o=document.createElement('option');o.value=c;o.textContent=TYPE_LABEL[c]||c;el('fType').appendChild(o);});
+      wypelnijMiasta(TEATRY,el('fCity'));
+      ['fType','fCity','fSort'].forEach(id=>el(id).addEventListener('change',render));
+    },
+    filtruj(items,q){
+      return items.filter(({f:t})=>!el('fType').value||t.type===el('fType').value)
+        .filter(({f:t})=>!el('fCity').value||t.city===el('fCity').value)
+        .filter(({f:t})=>!q||t.name.toLowerCase().includes(q)||t.city.toLowerCase().includes(q)||(t.note||'').toLowerCase().includes(q));
+    },
+    sortuj(items){
+      const s=el('fSort').value;
+      if(s==='name') items.sort((a,b)=>a.f.name.localeCompare(b.f.name,'pl'));
+      else if(s==='type') items.sort((a,b)=>a.f.type.localeCompare(b.f.type)||a.f.city.localeCompare(b.f.city,'pl'));
+      else items.sort((a,b)=>a.f.city.localeCompare(b.f.city,'pl')||a.f.name.localeCompare(b.f.name,'pl'));
+    },
+    karta(t,i){
+      const col=TYPE_COLOR[t.type]||'#8b93a3';
+      return `<div class="card" data-i="${i}" style="--cat:${col}">
+        <div class="top"><span class="name">${t.name}</span><span class="city">📍 ${t.city}</span></div>
+        <div class="chips"><span class="chip cat" style="--cat:${col}"><b>${TYPE_LABEL[t.type]||t.type}</b></span>
+        ${t.address?`<span class="chip"><b>${t.address}</b></span>`:''}</div>
+        ${t.note?`<div class="note">${t.note}</div>`:''}
+        <div class="links">${t.website?`<a href="${t.website}" target="_blank">🌐 strona i repertuar</a>`:''}</div>
+      </div>`;
+    },
+    popup(t,i){
+      return `<b>${t.name}</b><br>${t.city}${t.address?', '+t.address:''} · ${TYPE_LABEL[t.type]||t.type}
+        ${t.note?`<br><span style="color:#9aa5b4;font-size:.9em">${t.note}</span>`:''}
+        ${t.website?`<br><a href="${t.website}" target="_blank">strona i repertuar</a>`:''}
+        <br><a href="#" onclick="goList(${i});return false">📋 pokaż na liście</a>`;
+    },
+    statystyki(items){
+      const miast=new Set(items.map(({f:t})=>t.city)).size;
+      const typy={};
+      items.forEach(({f:t})=>typy[t.type]=(typy[t.type]||0)+1);
+      return `${items.length} teatrów w ${miast} miastach · `
+        +Object.entries(typy).map(([t,n])=>`${TYPE_LABEL[t]||t}: ${n}`).join(' · ');
+    }
+  }
+};
+
+// ---------- festiwale: terminy ----------
+const DATA_MIN=FESTIWALE.reduce((m,f)=>f.start<m?f.start:m,FESTIWALE[0].start);
+const DATA_MAX=FESTIWALE.reduce((m,f)=>f.end>m?f.end:m,FESTIWALE[0].end);
+const cenaFest=f=>f.free?0:(f.priceMin??f.pricePass??Infinity);
+const iso=d=>d.toISOString().slice(0,10);
+const plusDays=n=>{const d=new Date();d.setDate(d.getDate()+n);return iso(d);};
+const PRESETS={
+  year:()=>[TODAY,plusDays(365)],
+  halfyear:()=>[TODAY,plusDays(182)],
+  month:()=>[TODAY,plusDays(30)],
+  weekend:()=>{const d=new Date();const dow=d.getDay();const fri=new Date(d);fri.setDate(d.getDate()+((5-dow)+7)%7);const sun=new Date(fri);sun.setDate(fri.getDate()+2);return [iso(fri),iso(sun)];},
+  summer:()=>{const y=new Date().getFullYear();const yy=TODAY<=`${y}-09-22`?y:y+1;
+    return [TODAY>`${yy}-06-21`?TODAY:`${yy}-06-21`,`${yy}-09-22`];},
+  all:()=>[DATA_MIN,DATA_MAX]
+};
+function setRange(from,to,preset){
+  el('fFrom').value=from; el('fTo').value=to;
+  document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('on',b.dataset.p===preset));
+  render();
+}
+
+function wypelnijMiasta(dane,select,prev){
+  select.innerHTML='<option value="">Wszystkie miasta</option>';
+  [...new Set(dane.map(x=>x.city))].sort((a,b)=>a.localeCompare(b,'pl')).forEach(c=>{
+    const o=document.createElement('option');o.value=c;o.textContent=c;select.appendChild(o);});
+  if(prev&&[...select.options].some(o=>o.value===prev)) select.value=prev;
+}
+
+// ---------- silnik ----------
+let MODE='festiwale';
+let markers=[];
+
+function wyczyscMarkery(){
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+}
+
+function budujMarkery(){
+  wyczyscMarkery();
+  const M=MODES[MODE];
+  const dane=M.dane();
+  // rozsuwanie pinezek o identycznych wspolrzednych (spirala)
+  const spotGroups={},spotCounter={};
+  dane.forEach(f=>{
+    if(M.lat(f)==null) return;
+    const k=M.lat(f).toFixed(4)+','+M.lng(f).toFixed(4);
+    spotGroups[k]=(spotGroups[k]||0)+1;
+  });
+  dane.forEach((f,i)=>{
+    if(M.lat(f)==null) return;
+    const k=M.lat(f).toFixed(4)+','+M.lng(f).toFixed(4);
+    let la=M.lat(f), ln=M.lng(f);
+    if(spotGroups[k]>1){
+      const n=(spotCounter[k]=(spotCounter[k]||0)+1);
+      if(n>1){const ang=n*2.4,rad=0.006*Math.sqrt(n-1);
+        la=M.lat(f)+rad*Math.cos(ang); ln=M.lng(f)+rad*Math.sin(ang);}
+    }
+    const col=M.kolor(f);
+    const m=L.circleMarker([la,ln],{radius:7,color:col,weight:1.5,fillColor:col,fillOpacity:.55});
+    m.bindPopup(M.popup(f,i));
+    m.on('click',()=>highlight(i,false));
+    m._idx=i;
+    markers.push(m);
+  });
+}
+
+function highlight(i,pan=true){
+  document.querySelectorAll('.card').forEach(c=>c.classList.remove('active'));
+  const card=document.querySelector(`.card[data-i="${i}"]`);
+  if(card){card.classList.add('active');card.scrollIntoView({block:'nearest',behavior:'smooth'});}
+  const m=markers.find(x=>x._idx===i);
+  if(pan&&m){map.setView(m.getLatLng(),11);m.openPopup();}
+}
+
+function render(){
+  const M=MODES[MODE];
+  const q=searchEl.value.trim().toLowerCase();
+  let items=M.dane().map((f,i)=>({f,i}));
+  items=M.filtruj(items,q);
+  M.sortuj(items);
+  const shown=new Set(items.map(({i})=>i));
+  markers.forEach(m=>{
+    const on=shown.has(m._idx);
+    if(on&&!map.hasLayer(m)) m.addTo(map);
+    else if(!on&&map.hasLayer(m)) map.removeLayer(m);
+  });
+  listEl.innerHTML=items.length?items.map(({f,i})=>M.karta(f,i)).join('')
+    :'<div id="empty">Nic nie pasuje.<br>Zmień filtry albo kategorię.</div>';
+  document.querySelectorAll('.card').forEach(c=>c.addEventListener('click',()=>{
+    highlight(+c.dataset.i);
+    if(isMobile()) setView('map');
+  }));
+  statsEl.textContent=M.statystyki(items);
+}
+
+function ustawTryb(m){
+  MODE=m;
+  document.querySelectorAll('.mode').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+  document.body.classList.remove('adv-open');
+  filtersEl.innerHTML=MODES[m].filtryHtml;
+  el('applyFilters').addEventListener('click',()=>setView('list'));
+  MODES[m].initFiltry();  // initFiltry samo wywoluje render albo tu:
+  budujMarkery();
+  render();
+}
+document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>ustawTryb(b.dataset.m)));
+searchEl.addEventListener('input',()=>{
+  if(isMobile()) setView('list');
+  render();
+});
+
+if(typeof FESTIWALE_UPDATED!=='undefined') el('updated').textContent=`Festiwale: dane ${FESTIWALE_UPDATED}`;
+if(typeof KINA_UPDATED!=='undefined') el('updated').textContent+=` · kina: ${KINA_UPDATED}`;
+ustawTryb('festiwale');
+setView('list');
+</script>
+</body>
+</html>
