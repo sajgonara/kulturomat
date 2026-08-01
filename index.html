@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Kulturomat — kina, festiwale i teatry na mapie Polski</title>
+<title>Kulturomat — kina, festiwale, teatry i koncerty na mapie Polski</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎭</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
@@ -110,12 +110,13 @@ footer a{color:var(--accent)}
   <div class="hrow">
     <div>
       <h1>🎭 <span>Kulturomat</span></h1>
-      <div class="sub">kina studyjne · festiwale · teatry — mapa, terminy, ceny</div>
+      <div class="sub">kina studyjne · festiwale · teatry · koncerty — mapa, terminy, ceny</div>
     </div>
     <div id="modes">
       <button class="mode on" data-m="festiwale">🎪 Festiwale</button>
       <button class="mode" data-m="kina">🎬 Kina</button>
       <button class="mode" data-m="teatry">🎭 Teatry</button>
+      <button class="mode" data-m="koncerty">🎤 Koncerty</button>
     </div>
     <div id="controls">
       <input type="text" id="search" placeholder="Szukaj nazwy lub miasta…">
@@ -140,12 +141,18 @@ Terminy oznaczone ~termin / ≈ szacunek potwierdź u organizatora.
 <script src="data_festiwale.js"></script>
 <script src="data_kina.js"></script>
 <script src="data_teatry.js"></script>
+<script src="data_koncerty.js"></script>
 <script>
 // ---------- wspolne ----------
 const CAT_LABEL={muzyka:'🎵 muzyka',film:'🎬 film',folk:'🪗 folk',historia:'🛡️ historia',teatr:'🎭 teatr',jarmark:'🏪 jarmark',jedzenie:'🍲 jedzenie',literatura:'📚 literatura',inne:'✨ inne'};
 const CAT_COLOR={muzyka:'#f2a65a',film:'#7aa2f7',folk:'#c98bdb',historia:'#d0805c',teatr:'#e6667a',jarmark:'#5fbf77',jedzenie:'#e0c341',literatura:'#6fc7c2',inne:'#8b93a3'};
 const TYPE_LABEL={dramatyczny:'🎭 dramatyczny',muzyczny:'🎵 muzyczny',opera:'🎼 opera',lalek:'🧸 lalkowy'};
 const TYPE_COLOR={dramatyczny:'#e6667a',muzyczny:'#f2a65a',opera:'#c98bdb',lalek:'#6fc7c2'};
+const GENRE_LABEL={rock:'🎸 rock',pop:'🎤 pop',metal:'🤘 metal',hiphop:'🎧 hip-hop',elektronika:'🎛️ elektronika',jazz:'🎷 jazz',klasyka:'🎼 klasyka',indie:'🌿 indie',inne:'✨ inne'};
+const GENRE_COLOR={rock:'#e6667a',pop:'#7aa2f7',metal:'#8b93a3',hiphop:'#e0c341',elektronika:'#6fc7c2',jazz:'#c98bdb',klasyka:'#d0805c',indie:'#5fbf77',inne:'#9aa5b4'};
+const FORMA_LABEL={klub:'🎤 klub',sala:'🎻 sala koncertowa',hala:'🏢 hala/arena',stadion:'🏟️ stadion',amfiteatr:'🌳 amfiteatr',plener:'🌳 plener'};
+const FORMA_COLOR={klub:'#f2a65a',sala:'#c98bdb',hala:'#7aa2f7',stadion:'#e6667a',amfiteatr:'#5fbf77',plener:'#e0c341'};
+const SKALA_LABEL={kameralna:'kameralna <300',klubowa:'klubowa 300–2500',duza:'duża 2,5–10 tys.',mega:'mega >10 tys.'};
 const TODAY=new Date().toISOString().slice(0,10);
 const MONTHS=['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
 const el=id=>document.getElementById(id);
@@ -408,6 +415,114 @@ const MODES={
       return `${items.length} teatrów w ${miast} miastach · `
         +Object.entries(typy).map(([t,n])=>`${TYPE_LABEL[t]||t}: ${n}`).join(' · ');
     }
+  },
+  koncerty:{
+    dane:()=>KONCERTY,
+    kolor:f=>f.kind==='koncert'?(GENRE_COLOR[f.genres[0]]||'#8b93a3'):(FORMA_COLOR[f.forma]||'#8b93a3'),
+    miasto:f=>f.city, lat:f=>f.lat, lng:f=>f.lng,
+    filtryHtml:`
+      <select id="fKind">
+        <option value="">Miejsca i koncerty</option>
+        <option value="koncert">🎤 Tylko koncerty</option>
+        <option value="miejsce">🏟️ Tylko miejsca</option>
+      </select>
+      <select id="fGenre"><option value="">Wszystkie gatunki</option></select>
+      <select id="fForma"><option value="">Każda forma</option></select>
+      <select id="fSkala"><option value="">Każda skala</option></select>
+      <select id="fCity"><option value="">Wszystkie miasta</option></select>
+      <select id="fSort">
+        <option value="date">📅 Koncerty chronologicznie</option>
+        <option value="cap">👥 Największe obiekty</option>
+        <option value="city">🏙️ Miasto A–Z</option>
+        <option value="name">🔤 Nazwa A–Z</option>
+      </select>
+      <label class="toggle"><input type="checkbox" id="fHidePast" checked> ukryj minione</label>
+      <button id="applyFilters">✓ Pokaż wyniki</button>`,
+    initFiltry(){
+      Object.keys(GENRE_LABEL).forEach(g=>{
+        const o=document.createElement('option');o.value=g;o.textContent=GENRE_LABEL[g];el('fGenre').appendChild(o);});
+      Object.keys(FORMA_LABEL).forEach(f=>{
+        const o=document.createElement('option');o.value=f;o.textContent=FORMA_LABEL[f];el('fForma').appendChild(o);});
+      Object.keys(SKALA_LABEL).forEach(s=>{
+        const o=document.createElement('option');o.value=s;o.textContent=SKALA_LABEL[s];el('fSkala').appendChild(o);});
+      wypelnijMiasta(KONCERTY,el('fCity'));
+      ['fKind','fGenre','fForma','fSkala','fCity','fSort','fHidePast'].forEach(id=>el(id).addEventListener('change',render));
+    },
+    filtruj(items,q){
+      return items.filter(({f})=>!el('fKind').value||f.kind===el('fKind').value)
+        .filter(({f})=>!el('fGenre').value||(f.genres||[]).includes(el('fGenre').value))
+        .filter(({f})=>!el('fForma').value||f.forma===el('fForma').value)
+        .filter(({f})=>!el('fSkala').value||f.skala===el('fSkala').value)
+        .filter(({f})=>!el('fCity').value||f.city===el('fCity').value)
+        .filter(({f})=>!(el('fHidePast').checked&&f.kind==='koncert'&&(f.end||f.date)<TODAY))
+        .filter(({f})=>!q||f.name.toLowerCase().includes(q)||f.city.toLowerCase().includes(q)||(f.venue||'').toLowerCase().includes(q)||(f.note||'').toLowerCase().includes(q));
+    },
+    sortuj(items){
+      const s=el('fSort').value;
+      if(s==='city') items.sort((a,b)=>a.f.city.localeCompare(b.f.city,'pl')||a.f.name.localeCompare(b.f.name,'pl'));
+      else if(s==='name') items.sort((a,b)=>a.f.name.localeCompare(b.f.name,'pl'));
+      else if(s==='cap') items.sort((a,b)=>(b.f.cap||0)-(a.f.cap||0));
+      else items.sort((a,b)=>{
+        if(a.f.kind!==b.f.kind) return a.f.kind==='koncert'?-1:1;
+        if(a.f.kind==='koncert') return a.f.date.localeCompare(b.f.date);
+        return a.f.city.localeCompare(b.f.city,'pl')||a.f.name.localeCompare(b.f.name,'pl');
+      });
+    },
+    karta(f,i){return f.kind==='koncert'?this._kartaKoncert(f,i):this._kartaMiejsce(f,i);},
+    _kartaKoncert(f,i){
+      const past=(f.end||f.date)<TODAY, ongoing=f.date<=TODAY&&(f.end||f.date)>=TODAY;
+      const dd=daysBetween(TODAY,f.date);
+      const col=GENRE_COLOR[f.genres[0]]||'#8b93a3';
+      const timing=ongoing?'<span class="chip now"><b>trwa teraz</b></span>'
+        :(!past&&dd<=30?`<span class="chip soon">za <b>${dd}</b> dni</span>`:'');
+      const dateStr=f.end&&f.end!==f.date?fmtRange(f.date,f.end):fmtRange(f.date,f.date);
+      return `<div class="card ${past?'past':''}" data-i="${i}" style="--cat:${col}">
+        <div class="top"><span class="name">${f.name}</span><span class="city">📍 ${f.city}</span></div>
+        <div class="when">📅 <b>${dateStr}</b>${f.venue?` · ${f.venue}`:' <span class="badge" title="konkretny obiekt do potwierdzenia">~miejsce</span>'}</div>
+        <div class="chips">${f.genres.map(g=>`<span class="chip cat" style="--cat:${GENRE_COLOR[g]||'#8b93a3'}"><b>${GENRE_LABEL[g]||g}</b></span>`).join('')}
+        ${f.forma?`<span class="chip"><b>${FORMA_LABEL[f.forma]||f.forma}</b></span>`:''}
+        ${f.priceMin!=null?`<span class="chip">od <b>${fmtPLN(f.priceMin)}</b></span>`:''}${timing}</div>
+        ${f.note?`<div class="note">${f.note}</div>`:''}
+        <div class="links">${f.website?`<a href="${f.website}" target="_blank">🎟️ bilety / info</a>`
+          :`<a href="https://duckduckgo.com/?q=${encodeURIComponent(f.name+' koncert '+f.city+' bilety')}" target="_blank">🔎 szukaj biletów</a>`}</div>
+      </div>`;
+    },
+    _kartaMiejsce(f,i){
+      const col=FORMA_COLOR[f.forma]||'#8b93a3';
+      return `<div class="card" data-i="${i}" style="--cat:${col}">
+        <div class="top"><span class="name">${f.name}</span><span class="city">📍 ${f.city}</span></div>
+        <div class="chips"><span class="chip cat" style="--cat:${col}"><b>${FORMA_LABEL[f.forma]||f.forma}</b></span>
+        <span class="chip">${SKALA_LABEL[f.skala]||f.skala}</span>
+        ${f.cap?`<span class="chip">👥 <b>${f.cap.toLocaleString('pl-PL')}</b></span>`:''}
+        ${f.genres.map(g=>`<span class="chip"><b>${GENRE_LABEL[g]||g}</b></span>`).join('')}</div>
+        ${f.note?`<div class="note">${f.note}</div>`:''}
+        <div class="links">${f.website?`<a href="${f.website}" target="_blank">🌐 strona i bilety</a>`
+          :`<a href="https://duckduckgo.com/?q=${encodeURIComponent(f.name+' '+f.city+' koncerty')}" target="_blank">🔎 szukaj w sieci</a>`}</div>
+      </div>`;
+    },
+    popup(f,i){
+      if(f.kind==='koncert'){
+        const dateStr=f.end&&f.end!==f.date?fmtRange(f.date,f.end):fmtRange(f.date,f.date);
+        return `<b>${f.name}</b><br>${f.city}${f.venue?' · '+f.venue:' (~miejsce do potwierdzenia)'}<br>
+          📅 <b>${dateStr}</b> · ${f.genres.map(g=>GENRE_LABEL[g]||g).join(', ')}
+          ${f.priceMin!=null?`<br>🎟️ od <b>${fmtPLN(f.priceMin)}</b>`:''}
+          ${f.note?`<br><i style="font-size:.9em">${f.note}</i>`:''}
+          <br><a href="https://duckduckgo.com/?q=${encodeURIComponent(f.name+' koncert '+f.city+' bilety')}" target="_blank">szukaj biletów</a>
+          <br><a href="#" onclick="goList(${i});return false">📋 pokaż na liście</a>`;
+      }
+      return `<b>${f.name}</b><br>${f.city} · ${FORMA_LABEL[f.forma]||f.forma}<br>
+        ${SKALA_LABEL[f.skala]||f.skala}${f.cap?` · 👥 ${f.cap.toLocaleString('pl-PL')}`:''}<br>
+        ${f.genres.map(g=>GENRE_LABEL[g]||g).join(', ')}
+        ${f.note?`<br><i style="font-size:.9em">${f.note}</i>`:''}
+        ${f.website?`<br><a href="${f.website}" target="_blank">strona i bilety</a>`:''}
+        <br><a href="#" onclick="goList(${i});return false">📋 pokaż na liście</a>`;
+    },
+    statystyki(items){
+      const m=items.filter(({f})=>f.kind==='miejsce').length;
+      const k=items.filter(({f})=>f.kind==='koncert'&&(f.end||f.date)>=TODAY).length;
+      const miast=new Set(items.map(({f})=>f.city)).size;
+      return `${m} miejsc · ${k} nadchodzących koncertów · ${miast} miast`;
+    }
   }
 };
 
@@ -524,6 +639,7 @@ searchEl.addEventListener('input',()=>{
 
 if(typeof FESTIWALE_UPDATED!=='undefined') el('updated').textContent=`Festiwale: dane ${FESTIWALE_UPDATED}`;
 if(typeof KINA_UPDATED!=='undefined') el('updated').textContent+=` · kina: ${KINA_UPDATED}`;
+if(typeof KONCERTY_UPDATED!=='undefined') el('updated').textContent+=` · koncerty: ${KONCERTY_UPDATED}`;
 ustawTryb('festiwale');
 setView('list');
 </script>

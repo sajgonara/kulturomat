@@ -1,6 +1,6 @@
 # 🎭 Kulturomat
 
-Kina studyjne, festiwale i teatry w Polsce — jedna mapa, terminy i ceny.
+Kina studyjne, festiwale, teatry i koncerty w Polsce — jedna mapa, terminy i ceny.
 
 **Live:** https://sajgonara.github.io/kulturomat/
 
@@ -8,6 +8,7 @@ Kina studyjne, festiwale i teatry w Polsce — jedna mapa, terminy i ceny.
 - 🎪 **Festiwale** — kalendarz z filtrami terminów, kategoriami i cenami (bazuje na repo `festiwale`)
 - 🎬 **Kina** — kina studyjne i lokalne z cenami biletów (bazuje na repo `kina-studyjne`)
 - 🎭 **Teatry** — sceny dramatyczne, muzyczne, opery i teatry lalkowe
+- 🎤 **Koncerty** — miejsca koncertowe (kluby, hale, stadiony, amfiteatry, filharmonie) + nadchodzące koncerty; filtry: gatunek, forma, skala, miasto
 
 ## Funkcje
 - przełączanie sekcji jednym kliknięciem, wspólna szukajka
@@ -16,4 +17,4 @@ Kina studyjne, festiwale i teatry w Polsce — jedna mapa, terminy i ceny.
 - zwijane filtry zaawansowane (terminy festiwali)
 
 ## Dane
-`data_festiwale.js`, `data_kina.js`, `data_teatry.js` — zbiory własne (research + strony instytucji).
+`data_festiwale.js`, `data_kina.js`, `data_teatry.js`, `data_koncerty.js` — zbiory własne (research + strony instytucji).
