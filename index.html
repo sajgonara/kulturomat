@@ -83,7 +83,7 @@ footer a{color:var(--accent)}
 #filters{display:contents}
 @media(max-width:900px){
   header{padding:10px 12px}
-  header .sub{display:none}
+  header .sub:not(.hub-info-otwarte){display:none}
   #controls{margin-left:0;width:100%}
   input[type=text]{width:100%;font-size:1rem}
   #main{position:relative}
@@ -110,7 +110,7 @@ footer a{color:var(--accent)}
   <div class="hrow">
     <div>
       <h1>🎭 <span>Kulturomat</span></h1>
-      <div class="sub">kina studyjne · festiwale · teatry · koncerty — mapa, terminy, ceny</div>
+      <div class="sub hub-info">kina studyjne · festiwale · teatry · koncerty - mapa, terminy, ceny</div>
     </div>
     <div id="modes">
       <button class="mode on" data-m="festiwale">🎪 Festiwale</button>
@@ -129,8 +129,8 @@ footer a{color:var(--accent)}
   <div id="list"></div>
   <div id="map"></div>
 </div>
-<footer><span id="updated"></span> — dane zbiorcze: Sieć Kin Studyjnych, strony festiwali i teatrów, OpenStreetMap.
-Terminy oznaczone ~termin / ≈ szacunek potwierdź u organizatora.
+<footer><span id="updated"></span> <span class="hub-info" data-info-etykieta="Skąd dane">dane zbiorcze: Sieć Kin Studyjnych, strony festiwali i teatrów, OpenStreetMap.
+Terminy oznaczone ~termin / ≈ szacunek potwierdź u organizatora.</span>
 <a href="https://github.com/sajgonara/kulturomat" target="_blank">GitHub</a></footer>
 <nav id="tabs">
   <button data-v="list" class="on">📋 Lista</button>
